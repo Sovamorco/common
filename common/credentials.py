@@ -1,15 +1,15 @@
-from os import getenv
-from pathlib import Path
+from os import getenv as _getenv
+from pathlib import Path as _Path
 
-from hvac import Client
+from hvac import Client as _Client
 
 
 def _auth():
-    creds_path = getenv('VAULT_CREDS')
+    creds_path = _getenv('VAULT_CREDS')
     if creds_path is None:
         raise RuntimeError('Missing required VAULT_CREDS environment variable')
-    creds = Path(creds_path).read_text().strip().split('\n', 2)
-    client = Client(url=creds[0])
+    creds = _Path(creds_path).read_text().strip().split('\n', 2)
+    client = _Client(url=creds[0])
     client.auth.userpass.login(
         username=creds[1],
         password=creds[2],
@@ -31,3 +31,7 @@ def get_secrets(*keys):
     for key in keys:
         secrets[key] = _get_secret(client, key)
     return secrets
+
+
+def get_secret(key):
+    return get_secrets(key)[key]

@@ -6,7 +6,7 @@ with open('requirements.txt', 'r') as rf:
 
 setup(
     name='SovamorcoCommon',
-    version='0.0.5',
+    version='0.1.0',
     description='Common utils',
     author='Sovamorco',
     author_email='sovamorco@sovamor.co',
