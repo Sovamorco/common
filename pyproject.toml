@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Common"
+authors = [
+    { name = "Vasilii Kovalchuk", email = "sovamorco@sovamor.co" },
+]
+description = "Common utils"
+version = "0.2.0"
+requires-python = ">=3.10"
+dependencies = [
+    "hvac~=1.0",
+    "PyYaml~=6.0"
+]
+
+[project.optional-dependencies]
+async = ["aiohttp~=3.0"]
+sql = ["pymysql~=1.0"]
+sql_async = ["aiomysql~=0.1.0"]
+
+[tool.setuptools]
+packages = ["common"]
