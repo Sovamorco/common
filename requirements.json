@@ -1,0 +1,15 @@
+{
+  "": [
+    "hvac~=1.0",
+    "PyYaml~=6.0"
+  ],
+  "async": [
+    "aiohttp~=3.0"
+  ],
+  "sql": [
+    "pymysql~=1.0"
+  ],
+  "sql_async": [
+    "aiomysql~=0.1.0"
+  ]
+}

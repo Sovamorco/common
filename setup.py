@@ -1,8 +1,10 @@
 from distutils.core import setup
+from json import load
 
-with open('requirements.txt', 'r') as rf:
-    # .readlines() does not strip newlines
-    requirements = rf.read().splitlines()
+with open('requirements.json', 'r') as rf:
+    reqs = load(rf)
+requirements = reqs.pop('')
+extras = reqs
 
 setup(
     name='SovamorcoCommon',
@@ -13,4 +15,5 @@ setup(
     url='https://github.com/Sovamorco/common',
     packages=['common'],
     install_requires=requirements,
+    extras_require=extras,
 )

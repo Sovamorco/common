@@ -1,11 +1,9 @@
-import os as _os
-import typing as _typing
-from json import load as _json_load
-from pathlib import Path as _Path
+import os
+import typing
+from json import load as json_load
+from pathlib import Path
 
-from yaml import safe_load as _yaml_load
-
-from .credentials import get_secret as _get_secret
+from yaml import safe_load as yaml_load
 
 
 class UnsupportedFormat(Exception):
@@ -16,73 +14,123 @@ class RequiredValueNotFound(Exception):
     ...
 
 
-def _load_yaml(fileobj: _typing.IO) -> _typing.Sequence | _typing.Mapping:
-    return _yaml_load(fileobj)
+def load_yaml(fileobj: typing.IO) -> typing.Sequence | typing.Mapping:
+    return yaml_load(fileobj)
 
 
-def _load_json(fileobj: _typing.IO) -> _typing.Sequence | _typing.Mapping:
-    return _json_load(fileobj)
+def load_json(fileobj: typing.IO) -> typing.Sequence | typing.Mapping:
+    return json_load(fileobj)
 
 
-_LOADERS = {
-    '.yaml': _load_yaml,
-    '.yml': _load_yaml,
-    '.json': _load_json,
+LOADERS = {
+    '.yaml': load_yaml,
+    '.yml': load_yaml,
+    '.json': load_json,
 }
 
 
-def _env_interpolator(inp: str) -> str:
-    res = _os.getenv(inp)
+def env_interpolator(inp: str, *_) -> str:
+    res = os.getenv(inp)
     if res is None:
         raise RequiredValueNotFound(f'Required environment variable "{inp}" is not defined')
     return res
 
 
-def _fs_interpolator(inp: str) -> _typing.Mapping | _typing.Sequence:
-    path = _Path(inp)
-    return load_config(path)
+def oenv_interpolator(inp: str, *_) -> str | None:
+    return os.getenv(inp)
 
 
-def _vault_interpolator(inp: str) -> str | _typing.Mapping:
-    return _get_secret(inp)
+def fs_interpolator(inp: str, vault_client) -> typing.Mapping | typing.Sequence:
+    return load_config(inp, vault_client)
 
 
-_INTERPOLATORS = {
-    'ENV->': _env_interpolator,
-    # optional environment variable, literally just os.getenv
-    'OENV->': _os.getenv,
-    'FS->': _fs_interpolator,
-    'VAULT->': _vault_interpolator,
+def vault_interpolator(inp: str, vault_client) -> str | typing.Mapping:
+    if vault_client is None:
+        raise ValueError('Vault client not supplied for config with vault interpolations')
+    return vault_client.get_secret(inp)
+
+
+async def async_vault_interpolator(inp: str, vault_client) -> str | typing.Mapping:
+    if vault_client is None:
+        raise ValueError('Vault client not supplied for config with vault interpolations')
+    return await vault_client.get_secret(inp)
+
+
+def fake_async_wrapper(f):
+    async def inner():
+        return f()
+
+    return inner
+
+
+INTERPOLATORS = {
+    'ENV->': env_interpolator,
+    'OENV->': oenv_interpolator,
+    'FS->': fs_interpolator,
+    'VAULT->': vault_interpolator,
 }
 
+ASYNC_INTERPOLATORS = {
+    'ENV->': fake_async_wrapper(env_interpolator),
+    'OENV->': fake_async_wrapper(oenv_interpolator),
+    'FS->': fs_interpolator,
+    'VAULT->': async_vault_interpolator,
+}
 
-_T = _typing.TypeVar('_T', _typing.Sequence, _typing.Mapping)
+T = typing.TypeVar('T', typing.Sequence, typing.Mapping)
 
 
-def _interpolate_variables(inp: _T) -> _T:
+def interpolate_variables(inp: T, vault_client) -> T:
     if isinstance(inp, str):
-        for k, v in _INTERPOLATORS.items():
+        for k, v in INTERPOLATORS.items():
             if inp.startswith(k):
-                return v(inp.removeprefix(k))
-    elif isinstance(inp, _typing.Mapping):
+                return v(inp.removeprefix(k), vault_client)
+    elif isinstance(inp, typing.Mapping):
         newm = {}
         for k, v in inp.items():
-            newm[k] = _interpolate_variables(v)
+            newm[k] = interpolate_variables(v, vault_client)
         return newm
-    elif isinstance(inp, _typing.Sequence):
+    elif isinstance(inp, typing.Sequence):
         news = []
         for el in inp:
-            news.append(_interpolate_variables(el))
+            news.append(interpolate_variables(el, vault_client))
         return news
     return inp
 
 
-def load_config(filename: str | _Path = 'config.yaml'):
-    config_path = _Path(filename)
+async def async_interpolate_variables(inp: T, vault_client) -> T:
+    if isinstance(inp, str):
+        for k, v in ASYNC_INTERPOLATORS.items():
+            if inp.startswith(k):
+                return await v(inp.removeprefix(k), vault_client)
+    elif isinstance(inp, typing.Mapping):
+        newm = {}
+        for k, v in inp.items():
+            newm[k] = await async_interpolate_variables(v, vault_client)
+        return newm
+    elif isinstance(inp, typing.Sequence):
+        news = []
+        for el in inp:
+            news.append(await async_interpolate_variables(el, vault_client))
+        return news
+    return inp
+
+
+def load_uninterpolated_config(filename):
+    config_path = Path(filename)
     if not config_path.exists():
         raise FileNotFoundError(f'File {filename} does not exist')
-    if config_path.suffix not in _LOADERS:
+    if config_path.suffix not in LOADERS:
         raise UnsupportedFormat(f'"{config_path.suffix}" is not a supported config format')
     with config_path.open('rb') as f:
-        loaded = _LOADERS[config_path.suffix](f)
-    return _interpolate_variables(loaded)
+        return LOADERS[config_path.suffix](f)
+
+
+def load_config(filename: str | Path = 'config.yaml', vault_client=None):
+    loaded = load_uninterpolated_config(filename)
+    return interpolate_variables(loaded, vault_client)
+
+
+async def async_load_config(filename: str | Path = 'config.yaml', vault_client=None):
+    loaded = load_uninterpolated_config(filename)
+    return await async_interpolate_variables(loaded, vault_client)
