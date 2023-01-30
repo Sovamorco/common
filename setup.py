@@ -7,7 +7,7 @@ requirements = reqs.pop('')
 extras = reqs
 
 setup(
-    name='SovamorcoCommon',
+    name='Common',
     version='0.1.0',
     description='Common utils',
     author='Sovamorco',
