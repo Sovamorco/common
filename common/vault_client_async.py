@@ -4,7 +4,7 @@ from json import JSONDecodeError
 from aiohttp import ClientSession, ClientResponse
 from hvac import utils
 
-from .sync_vault_client import *
+from .vault_client import *
 
 
 class AsyncJSONAdapter(ModJSONAdapter):
@@ -224,12 +224,14 @@ class AsyncVaultClient(VaultClient):
             adapter = AsyncJSONAdapter
         super().__init__(*args, **kwargs, adapter=adapter)
 
-    async def login(self):
+    async def userpass_login(self):
         lease_started = time()
-        response = await self.hvac_client.auth.userpass.login(
-            username=self.username,
-            password=self.password,
-        )
+        response = await self.hvac_client.auth.userpass.login(**self.parameters)
+        self._process_login_response(lease_started, response)
+
+    async def approle_login(self):
+        lease_started = time()
+        response = await self.hvac_client.auth.approle.login(**self.parameters)
         self._process_login_response(lease_started, response)
 
     async def refresh_login(self):

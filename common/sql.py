@@ -4,7 +4,7 @@ from time import time
 import pymysql
 from pymysql.cursors import DictCursor
 
-from .sync_vault_client import VaultClient
+from .vault_client import VaultClient
 
 
 class SQLClient:

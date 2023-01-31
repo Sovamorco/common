@@ -1,10 +1,11 @@
 from os import getenv
-from pathlib import Path
 from time import time
 from typing import Mapping, TypeVar, Type
 
 from hvac import Client as HVACClient
 from hvac.adapters import JSONAdapter
+
+from .config import load_config
 
 C = TypeVar('C', 'VaultClient', 'AsyncVaultClient')
 
@@ -24,10 +25,10 @@ class ModJSONAdapter(JSONAdapter):
 
 
 class VaultClient:
-    def __init__(self, host, username, password, adapter=ModJSONAdapter, **kwargs):
+    def __init__(self, host, method, parameters, adapter=ModJSONAdapter, **kwargs):
         self.host = host
-        self.username = username
-        self.password = password
+        self.method = method
+        self.parameters = parameters
         self.hvac_client = HVACClient(url=self.host, adapter=adapter, **kwargs)
 
         self.token_expires_at = 0
@@ -44,13 +45,27 @@ class VaultClient:
         self.max_uses = response['auth']['num_uses']
         self.hvac_client.adapter.token_uses = 0
 
-    def login(self):
+    def userpass_login(self):
         lease_started = time()
-        response = self.hvac_client.auth.userpass.login(
-            username=self.username,
-            password=self.password,
-        )
+        response = self.hvac_client.auth.userpass.login(**self.parameters)
         self._process_login_response(lease_started, response)
+
+    def approle_login(self):
+        lease_started = time()
+        response = self.hvac_client.auth.approle.login(**self.parameters)
+        self._process_login_response(lease_started, response)
+
+    @property
+    def login_methods(self):
+        return {
+            'userpass': self.userpass_login,
+            'approle': self.approle_login,
+        }
+
+    def login(self):
+        if self.method not in self.login_methods:
+            raise VaultLoginError(f'Login method {self.method} not supported')
+        return self.login_methods[self.method]()
 
     @property
     def time_to_refresh(self):
@@ -92,8 +107,8 @@ class VaultClient:
 
 
 def create_uninitialized_client(cls):
-    creds_path = getenv('VAULT_CREDS')
+    creds_path = getenv('VAULT_CONFIG')
     if creds_path is None:
-        raise RuntimeError('Missing required VAULT_CREDS environment variable')
-    creds = Path(creds_path).read_text().strip().split('\n', 2)
-    return cls(*creds)
+        raise RuntimeError('Missing required VAULT_CONFIG environment variable')
+    config = load_config(creds_path)
+    return cls(config.pop('host'), config.pop('method'), config.pop('parameters'), **config)

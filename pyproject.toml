@@ -8,7 +8,7 @@ authors = [
     { name = "Vasilii Kovalchuk", email = "sovamorco@sovamor.co" },
 ]
 description = "Common utils"
-version = "0.2.2"
+version = "0.3.0"
 requires-python = ">=3.10"
 dependencies = [
     "hvac~=1.0",

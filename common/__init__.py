@@ -1,9 +1,9 @@
 from .config import load_config, async_load_config
-from .sync_vault_client import VaultClient
+from .vault_client import VaultClient
 
 # ImportError raised inside these modules means that optional extras for it were not installed
 try:
-    from .async_vault_client import AsyncVaultClient
+    from .vault_client_async import AsyncVaultClient
 except ImportError:
     pass
 
