@@ -10,6 +10,7 @@ from .vault_client import VaultClient
 class SQLClient:
     def __init__(self, config, vault_client: VaultClient | None = None):
         self.config = deepcopy(config)
+        self.config['autocommit'] = self.config.get('autocommit', True)
         self.vault_client = vault_client
         self.role_name = self.config.pop('role_name', None)
         self.expires_at = None if self.role_name is None else 0
