@@ -1,0 +1,6 @@
+/temp/
+/venv/
+.idea/
+.vscode/
+.history/
+__pycache__

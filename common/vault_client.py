@@ -1,13 +1,13 @@
 from os import getenv
 from time import time
-from typing import Mapping, TypeVar, Type
+from typing import Mapping, Type, TypeVar
 
 from hvac import Client as HVACClient
 from hvac.adapters import JSONAdapter
 
 from .config import load_config
 
-C = TypeVar('C', 'VaultClient', 'AsyncVaultClient')
+C = TypeVar("C", "VaultClient", "AsyncVaultClient")
 
 
 class VaultLoginError(ValueError):
@@ -40,9 +40,10 @@ class VaultClient:
 
     def _process_login_response(self, lease_started, response):
         if not isinstance(response, Mapping):
-            raise VaultLoginError('Login response should be a Mapping')
-        self.token_expires_at = lease_started + response['auth']['lease_duration']
-        self.max_uses = response['auth']['num_uses']
+            raise VaultLoginError("Login response should be a Mapping")
+
+        self.token_expires_at = lease_started + response["auth"]["lease_duration"]
+        self.max_uses = response["auth"]["num_uses"]
         self.hvac_client.adapter.token_uses = 0
 
     def userpass_login(self):
@@ -55,21 +56,31 @@ class VaultClient:
         response = self.hvac_client.auth.approle.login(**self.parameters)
         self._process_login_response(lease_started, response)
 
+    # workload login sets token expiration to -1 to never refresh (does not need logging in).
+    def workload_login(self):
+        self.token_expires_at = -1
+        self.max_uses = 0
+
     @property
     def login_methods(self):
         return {
-            'userpass': self.userpass_login,
-            'approle': self.approle_login,
+            "userpass": self.userpass_login,
+            "approle": self.approle_login,
+            "workload": self.workload_login,
         }
 
     def login(self):
         if self.method not in self.login_methods:
-            raise VaultLoginError(f'Login method {self.method} not supported')
+            raise VaultLoginError(f"Login method {self.method} not supported")
+
         return self.login_methods[self.method]()
 
     @property
     def time_to_refresh(self):
-        return time() > self.token_expires_at or 0 < self.max_uses <= self.hvac_client.adapter.token_uses
+        return (
+            -1 < self.token_expires_at < time()
+            or 0 < self.max_uses <= self.hvac_client.adapter.token_uses
+        )
 
     def refresh_login(self):
         if self.time_to_refresh:
@@ -77,9 +88,9 @@ class VaultClient:
 
     @staticmethod
     def _process_get_secret_response(response):
-        data = response['data']['data']
-        if len(data) == 1 and list(data.keys())[0] == 'value':
-            data = data['value']
+        data = response["data"]["data"]
+        if len(data) == 1 and list(data.keys())[0] == "value":
+            data = data["value"]
         return data
 
     def _prepare_get_secret_request(self, key, **kwargs):
@@ -95,7 +106,7 @@ class VaultClient:
 
     @staticmethod
     def _process_get_database_connection_profile_response(response):
-        return response['data'], response['lease_duration']
+        return response["data"], response["lease_duration"]
 
     def get_database_connection_profile(self, *args, **kwargs):
         self.refresh_login()
@@ -106,9 +117,32 @@ class VaultClient:
         return self.hvac_client.adapter.close()
 
 
+def load_workload_identity():
+    config = {
+        "host": "VAULT_HOST",
+        "verify": "VAULT_CA_CERT",
+    }
+
+    for key, value in config.items():
+        envvalue = getenv(value)
+        if envvalue is None:
+            raise RuntimeError(f"Missing required environment variable {value}")
+
+        config[key] = envvalue
+
+    return config | {
+        "method": "workload",
+        "parameters": {},
+    }
+
+
 def create_uninitialized_client(cls):
-    creds_path = getenv('VAULT_CONFIG')
-    if creds_path is None:
-        raise RuntimeError('Missing required VAULT_CONFIG environment variable')
-    config = load_config(creds_path)
-    return cls(config.pop('host'), config.pop('method'), config.pop('parameters'), **config)
+    creds_path = getenv("VAULT_CONFIG")
+    if creds_path is not None:
+        config = load_config(creds_path)
+    else:
+        config = load_workload_identity()
+
+    return cls(
+        config.pop("host"), config.pop("method"), config.pop("parameters"), **config
+    )

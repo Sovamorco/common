@@ -20,16 +20,20 @@ class AsyncSQLClient(SQLClient):
                 await self.init_pool()
             return
         lease_started = time()
-        credentials, lease_duration = await self.vault_client.get_database_connection_profile(self.role_name)
-        self.config['user'] = credentials['username']
-        self.config['password'] = credentials['password']
+        credentials, lease_duration = (
+            await self.vault_client.get_database_connection_profile(self.role_name)
+        )
+        self.config["user"] = credentials["username"]
+        self.config["password"] = credentials["password"]
         self.expires_at = lease_started + lease_duration
         old_pool = self.pool
         await self.init_pool()
         if old_pool is not None:
             old_pool.close()
 
-    async def sql_req(self, query, *params, fetch_one=False, fetch_all=False, last_row_id=False):
+    async def sql_req(
+        self, query, *params, fetch_one=False, fetch_all=False, last_row_id=False
+    ):
         await self.refresh()
         async with self.pool.acquire() as conn:
             async with conn.cursor(DictCursor) as cur:

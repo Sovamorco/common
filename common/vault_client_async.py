@@ -1,7 +1,7 @@
 import warnings
 from json import JSONDecodeError
 
-from aiohttp import ClientSession, ClientResponse
+from aiohttp import ClientSession
 from hvac import utils
 
 from .vault_client import *
@@ -11,21 +11,21 @@ class AsyncJSONAdapter(ModJSONAdapter):
     session: ClientSession
 
     def __init__(self, *args, **kwargs):
-        session = kwargs.pop('session', None)
+        session = kwargs.pop("session", None)
         if session is None:
             session = ClientSession()
         super().__init__(*args, **kwargs, session=session)
-        cert = self._kwargs.pop('cert', None)
+        cert = self._kwargs.pop("cert", None)
         if cert is not None:
-            self._kwargs['ssl'] = cert
-        verify = self._kwargs.pop('verify', None)
+            self._kwargs["ssl"] = cert
+        verify = self._kwargs.pop("verify", None)
         if verify is not None:
-            self._kwargs['ssl'] = verify
-        proxies = self._kwargs.pop('proxies', None)
+            self._kwargs["ssl"] = verify
+        proxies = self._kwargs.pop("proxies", None)
         if proxies is not None and len(proxies) > 0:
             if len(proxies) > 1:
-                warnings.warn('Can only use 1 proxy in async client, ignoring the rest')
-            self._kwargs['proxy'] = next(proxies.values())
+                warnings.warn("Can only use 1 proxy in async client, ignoring the rest")
+            self._kwargs["proxy"] = next(proxies.values())
 
     async def get(self, url, **kwargs):
         """Performs a GET request.
@@ -38,7 +38,7 @@ class AsyncJSONAdapter(ModJSONAdapter):
         :return: The response of the request.
         :rtype: requests.Response
         """
-        return await self.request('get', url, **kwargs)
+        return await self.request("get", url, **kwargs)
 
     async def post(self, url, **kwargs):
         """Performs a POST request.
@@ -51,7 +51,7 @@ class AsyncJSONAdapter(ModJSONAdapter):
         :return: The response of the request.
         :rtype: requests.Response
         """
-        return await self.request('post', url, **kwargs)
+        return await self.request("post", url, **kwargs)
 
     async def put(self, url, **kwargs):
         """Performs a PUT request.
@@ -64,7 +64,7 @@ class AsyncJSONAdapter(ModJSONAdapter):
         :return: The response of the request.
         :rtype: requests.Response
         """
-        return await self.request('put', url, **kwargs)
+        return await self.request("put", url, **kwargs)
 
     async def delete(self, url, **kwargs):
         """Performs a DELETE request.
@@ -77,7 +77,7 @@ class AsyncJSONAdapter(ModJSONAdapter):
         :return: The response of the request.
         :rtype: requests.Response
         """
-        return await self.request('delete', url, **kwargs)
+        return await self.request("delete", url, **kwargs)
 
     async def list(self, url, **kwargs):
         """Performs a LIST request.
@@ -90,7 +90,7 @@ class AsyncJSONAdapter(ModJSONAdapter):
         :return: The response of the request.
         :rtype: requests.Response
         """
-        return await self.request('list', url, **kwargs)
+        return await self.request("list", url, **kwargs)
 
     async def head(self, url, **kwargs):
         """Performs a HEAD request.
@@ -103,7 +103,7 @@ class AsyncJSONAdapter(ModJSONAdapter):
         :return: The response of the request.
         :rtype: requests.Response
         """
-        return await self.request('head', url, **kwargs)
+        return await self.request("head", url, **kwargs)
 
     async def login(self, url, use_token=True, **kwargs):
         """Perform a login request.
@@ -150,10 +150,10 @@ class AsyncJSONAdapter(ModJSONAdapter):
 
         self.token_uses += 1
 
-        while '//' in url:
+        while "//" in url:
             # Vault CLI treats a double forward slash ('//') as a single forward slash for a given path.
             # To avoid issues with the requests module's redirection logic, we perform the same translation here.
-            url = url.replace('//', '/')
+            url = url.replace("//", "/")
 
         url = self.urljoin(self.base_uri, url)
 
@@ -161,49 +161,47 @@ class AsyncJSONAdapter(ModJSONAdapter):
             headers = {}
 
         if self.request_header:
-            headers['X-Vault-Request'] = 'true'
+            headers["X-Vault-Request"] = "true"
 
         if self.token:
-            headers['X-Vault-Token'] = self.token
+            headers["X-Vault-Token"] = self.token
 
         if self.namespace:
-            headers['X-Vault-Namespace'] = self.namespace
+            headers["X-Vault-Namespace"] = self.namespace
 
-        wrap_ttl = kwargs.pop('wrap_ttl', None)
+        wrap_ttl = kwargs.pop("wrap_ttl", None)
         if wrap_ttl:
-            headers['X-Vault-Wrap-TTL'] = str(wrap_ttl)
+            headers["X-Vault-Wrap-TTL"] = str(wrap_ttl)
 
         _kwargs = self._kwargs.copy()
         _kwargs.update(kwargs)
 
-        if self.strict_http and method.lower() in ('list',):
+        if self.strict_http and method.lower() in ("list",):
             # Entry point for standard HTTP substitution
             params = _kwargs.get()
-            if method.lower() == 'list':
-                method = 'get'
-                params.update({'list': 'true'})
-            _kwargs['params'] = params
+            if method.lower() == "list":
+                method = "get"
+                params.update({"list": "true"})
+            _kwargs["params"] = params
 
         response = await self.session.request(
             method=method,
             url=url,
             headers=headers,
             allow_redirects=self.allow_redirects,
-            **_kwargs
+            **_kwargs,
         )
 
         if not response.ok and (raise_exception and not self.ignore_exceptions):
             text = errors = None
-            if response.headers.get('Content-Type') == 'application/json':
+            if response.headers.get("Content-Type") == "application/json":
                 try:
                     errors = (await response.json()).get()
                 except (JSONDecodeError, TypeError):
                     pass
             if errors is None:
                 text = response.text
-            utils.raise_for_error(
-                method, url, response.status, text, errors=errors
-            )
+            utils.raise_for_error(method, url, response.status, text, errors=errors)
 
         if response.status == 200:
             try:
@@ -219,7 +217,7 @@ class AsyncJSONAdapter(ModJSONAdapter):
 
 class AsyncVaultClient(VaultClient):
     def __init__(self, *args, **kwargs):
-        adapter = kwargs.pop('adapter', None)
+        adapter = kwargs.pop("adapter", None)
         if adapter is None:
             adapter = AsyncJSONAdapter
         super().__init__(*args, **kwargs, adapter=adapter)
@@ -233,6 +231,9 @@ class AsyncVaultClient(VaultClient):
         lease_started = time()
         response = await self.hvac_client.auth.approle.login(**self.parameters)
         self._process_login_response(lease_started, response)
+
+    async def workload_login(self):
+        super().workload_login()
 
     async def refresh_login(self):
         if self.time_to_refresh:
