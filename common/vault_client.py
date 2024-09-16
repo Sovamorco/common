@@ -1,13 +1,11 @@
 from os import getenv
 from time import time
-from typing import Mapping, Type, TypeVar
+from typing import Mapping, Type
 
 from hvac import Client as HVACClient
 from hvac.adapters import JSONAdapter
 
 from .config import load_config
-
-C = TypeVar("C", "VaultClient")
 
 
 class VaultLoginError(ValueError):
@@ -35,7 +33,7 @@ class VaultClient:
         self.max_uses = 1
 
     @classmethod
-    def from_env(cls: Type[C]) -> C:
+    def from_env(cls: Type["VaultClient"]) -> "VaultClient":
         return create_uninitialized_client(cls)
 
     def _process_login_response(self, lease_started, response):
