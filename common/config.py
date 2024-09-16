@@ -52,8 +52,9 @@ def vault_interpolator(inp: str, vault_client) -> str | typing.Mapping:
     return vault_client.get_secret(inp)
 
 def fake_async_wrapper(f):
-    async def inner():
-        return f()
+
+    async def inner(*args, **kwargs):
+        return f(*args, **kwargs)
 
     return inner
 
