@@ -14,6 +14,7 @@ class AsyncJSONAdapter(ModJSONAdapter):
         session = kwargs.pop("session", None)
         if session is None:
             session = ClientSession()
+            session.verify = None
         super().__init__(*args, **kwargs, session=session)
         cert = self._kwargs.pop("cert", None)
         if cert is not None:
