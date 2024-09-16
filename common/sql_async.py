@@ -20,8 +20,8 @@ class AsyncSQLClient(SQLClient):
                 await self.init_pool()
             return
         lease_started = time()
-        credentials, lease_duration = (
-            await self.vault_client.get_database_connection_profile(self.role_name)
+        credentials, lease_duration = self.vault_client.get_database_connection_profile(
+            self.role_name
         )
         self.config["user"] = credentials["username"]
         self.config["password"] = credentials["password"]

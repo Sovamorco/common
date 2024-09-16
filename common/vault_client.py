@@ -7,7 +7,7 @@ from hvac.adapters import JSONAdapter
 
 from .config import load_config
 
-C = TypeVar("C", "VaultClient", "AsyncVaultClient")
+C = TypeVar("C", "VaultClient")
 
 
 class VaultLoginError(ValueError):

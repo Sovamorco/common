@@ -51,15 +51,6 @@ def vault_interpolator(inp: str, vault_client) -> str | typing.Mapping:
         )
     return vault_client.get_secret(inp)
 
-
-async def async_vault_interpolator(inp: str, vault_client) -> str | typing.Mapping:
-    if vault_client is None:
-        raise ValueError(
-            "Vault client not supplied for config with vault interpolations"
-        )
-    return await vault_client.get_secret(inp)
-
-
 def fake_async_wrapper(f):
     async def inner():
         return f()
@@ -78,7 +69,7 @@ ASYNC_INTERPOLATORS = {
     "ENV->": fake_async_wrapper(env_interpolator),
     "OENV->": fake_async_wrapper(oenv_interpolator),
     "FS->": fs_interpolator,
-    "VAULT->": async_vault_interpolator,
+    "VAULT->": fake_async_wrapper(vault_interpolator),
 }
 
 T = typing.TypeVar("T", typing.Sequence, typing.Mapping)
