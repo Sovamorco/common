@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-async = ["aiohttp~=3.0"]
+async = ["grequests~=0.7.0"]
 sql = ["pymysql~=1.0", "cryptography~=43.0"]
 sql_async = ["aiomysql~=0.2.0", "cryptography~=43.0"]
 

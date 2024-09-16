@@ -1,34 +1,22 @@
 import warnings
 from json import JSONDecodeError
 
-from aiohttp import ClientSession
+import grequests
+
 from hvac import utils
 
 from .vault_client import *
 
 
 class AsyncJSONAdapter(ModJSONAdapter):
-    session: ClientSession
+    session: grequests.Session
 
     def __init__(self, *args, **kwargs):
         session = kwargs.pop("session", None)
         if session is None:
-            session = ClientSession()
-            session.verify = None
-            session.cert = None
-            session.proxies = None
+            session = grequests.Session()
+
         super().__init__(*args, **kwargs, session=session)
-        cert = self._kwargs.pop("cert", None)
-        if cert is not None:
-            self._kwargs["ssl"] = cert
-        verify = self._kwargs.pop("verify", None)
-        if verify is not None:
-            self._kwargs["ssl"] = verify
-        proxies = self._kwargs.pop("proxies", None)
-        if proxies is not None and len(proxies) > 0:
-            if len(proxies) > 1:
-                warnings.warn("Can only use 1 proxy in async client, ignoring the rest")
-            self._kwargs["proxy"] = next(proxies.values())
 
     async def get(self, url, **kwargs):
         """Performs a GET request.
