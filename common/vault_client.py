@@ -78,8 +78,10 @@ class VaultClient:
     @property
     def time_to_refresh(self):
         return (
-            -1 < self.token_expires_at < time()
-            or 0 < self.max_uses <= self.hvac_client.adapter.token_uses
+            self.token_expires_at is not None and self.token_expires_at < time()
+        ) or (
+            self.max_uses is not None
+            and self.max_uses <= self.hvac_client.adapter.token_uses
         )
 
     def refresh_login(self):
@@ -118,19 +120,8 @@ class VaultClient:
 
 
 def load_workload_identity():
-    config = {
-        "host": "VAULT_HOST",
-        "verify": "VAULT_CA_CERT",
-    }
-
-    for key, value in config.items():
-        envvalue = getenv(value)
-        if envvalue is None:
-            raise RuntimeError(f"Missing required environment variable {value}")
-
-        config[key] = envvalue
-
-    return config | {
+    return {
+        "host": None,
         "method": "workload",
         "parameters": {},
     }
@@ -144,5 +135,8 @@ def create_uninitialized_client(cls):
         config = load_workload_identity()
 
     return cls(
-        config.pop("host"), config.pop("method"), config.pop("parameters"), **config
+        config.pop("host"),
+        config.pop("method"),
+        config.pop("parameters"),
+        **config,
     )
